@@ -3,12 +3,27 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/bcampbell/fuzzytime"
+  packages = ["."]
+  revision = "6a03581b01a2b1647d35ccf849090b5036108e0c"
+
+[[projects]]
+  branch = "master"
   name = "github.com/jmoiron/sqlx"
   packages = [
     ".",
     "reflectx"
   ]
   revision = "cf35089a197953c69420c8d0cecda90809764b1d"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/lib/pq"
+  packages = [
+    ".",
+    "oid"
+  ]
+  revision = "d34b9ff171c21ad295489235aec8b6626023cd04"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -46,6 +61,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d01ddaa92c2b64c3f9bee3d98399190737a2c890603c0a57bb1e3eb01578bdc1"
+  inputs-digest = "78381b5fbab32fd27ef33bed09cdfe79c348bc4e2beef0a819e9dfc48be2dd66"
   solver-name = "gps-cdcl"
   solver-version = 1
