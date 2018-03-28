@@ -105,3 +105,10 @@ func parseBid(bid string) *Bid {
 		CoinType: bidType,
 	}
 }
+
+func niceTime(time time.Time) string {
+	//18:00 UTC 24.03
+	return fmt.Sprintf("%v:%v %v %v.%v", time.Hour(), time.Minute(), time.Location().String(), time.Day(), time.Month())
+
+}
+

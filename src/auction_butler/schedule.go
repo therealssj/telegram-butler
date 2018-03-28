@@ -8,10 +8,10 @@ import (
 type task int
 
 const (
-	nothing    task = iota
+	nothing              task = iota
 	endAuction
 	reminderAnnouncement
-	announceEventEnd
+	startCountDown
 )
 
 // Returns what to do next (start, stop or nothing) and when
@@ -22,6 +22,7 @@ func (bot *Bot) schedule() (task, time.Time) {
 	}
 
 	if auction.EndTime.Valid {
+		bot.auctionEndTime = auction.EndTime.Time
 		return endAuction, auction.EndTime.Time
 	}
 
@@ -38,17 +39,25 @@ func (bot *Bot) subSchedule() (task, time.Time) {
 	}
 
 	// at what intervals to send the reminder for time left
+	//TODO (therealssj): decrease reminder announce interval overtime
 	every := bot.config.ReminderAnnounceInterval.Duration
 
 	announcements := time.Until(future) / every
 	if announcements <= 0 {
-		return tsk, future
+		if tsk == endAuction && time.Until(future) > time.Duration(time.Second*110) {
+			// start countdown if there is almost 100 seconds left till the end
+			return startCountDown, time.Time{}
+		}
+
+		// make a reminder announcement after 5 seconds
+		return reminderAnnouncement, time.Now().Add(5 * time.Second)
 	}
 
 	nearFuture := future.Add(-announcements * every)
 	switch tsk {
 	case endAuction:
-		return announceEventEnd, nearFuture
+		// make a reminder announcement soon
+		return reminderAnnouncement, nearFuture
 	default:
 		log.Print("unsupported task to subSchedule")
 		return nothing, time.Time{}
@@ -64,7 +73,21 @@ func (bot *Bot) perform(tsk task) {
 
 	noctx := &Context{}
 	switch tsk {
+	case reminderAnnouncement:
+		bot.Send(noctx, "yell", "html", fmt.Sprintf(`Auction ends @%s`, niceTime(bot.auctionEndTime)))
+	case startCountDown:
+		for i := bot.config.ResettingCountdownFrom; i > 0; i-- {
+			select {
+			// if a bid was placed reset the counter
+			case <-bot.bidChan:
+				i = 5
+			default:
+				bot.Send(noctx, "yell", "text", fmt.Sprintf("%v", i))
+				time.Sleep(time.Second * 1)
+			}
+		}
 
+		bot.Reply(bot.lastBidMessage, `Please PM @erichkaestner`)
 	default:
 		log.Printf("unsupported task to perform: %v", tsk)
 	}
@@ -74,6 +97,11 @@ func (bot *Bot) maintain() {
 	bot.rescheduleChan = make(chan int)
 	defer func() {
 		close(bot.rescheduleChan)
+	}()
+
+	bot.bidChan = make(chan int)
+	defer func() {
+		close(bot.bidChan)
 	}()
 	var timer *time.Timer
 	for {

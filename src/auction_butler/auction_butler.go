@@ -1,10 +1,12 @@
 package auction_butler
 
 import (
-	"gopkg.in/telegram-bot-api.v4"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"strings"
+	"time"
+
+	"github.com/sirupsen/logrus"
+	"gopkg.in/telegram-bot-api.v4"
 )
 
 var (
@@ -20,7 +22,10 @@ type Bot struct {
 	privateMessageHandlers []MessageHandler
 	groupMessageHandlers   []MessageHandler
 	rescheduleChan         chan int
-	lastBidMessage         *tgbotapi.Message
+	lastBidMessage         *Context
+	auctionEndTime         time.Time
+	runningCountDown       bool
+	bidChan                chan int
 }
 
 type Context struct {
@@ -170,7 +175,21 @@ func (bot *Bot) handleUserJoin(ctx *Context, user *tgbotapi.User) error {
 	}
 
 	log.Printf("user joined: %s", dbuser.NameAndTags())
-	return bot.Reply(ctx, `Welcome to KittyCash auction group.`)
+	msg, err := bot.Send(ctx, "reply", "html", `Welcome to the KittyCash Auction group. Please familiarise yourself with the rules in the <a href="t.me/KittyCashAuction/746">pinned message</a> before bidding on a Legendary Kitty.`)
+
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		time.Sleep(bot.config.MsgDeleteCounter.Duration)
+		bot.telegram.DeleteMessage(tgbotapi.DeleteMessageConfig{
+			ChatID:    bot.config.ChatID,
+			MessageID: msg.MessageID,
+		})
+	}()
+
+	return nil
 }
 
 func (bot *Bot) handleUserLeft(ctx *Context, user *tgbotapi.User) error {
@@ -238,18 +257,21 @@ func (bot *Bot) handleGroupMessage(ctx *Context) error {
 		}
 
 		//TODO (therealssj): add something to retry sending?
-		msg, _ := bot.Send(ctx, "yell", "html",fmt.Sprintf(`Current bid of ? ?
+		msg, _ := bot.Send(ctx, "yell", "html", fmt.Sprintf(`Current bid of ? ?
 
-Bids only please`, bid.Value, bid.CoinType))
+Bids only please.`, bid.Value, bid.CoinType))
 
 		if bot.lastBidMessage != nil {
 			bot.telegram.DeleteMessage(tgbotapi.DeleteMessageConfig{
-				ChatID: bot.config.ChatID,
-				MessageID: bot.lastBidMessage.MessageID,
+				ChatID:    bot.config.ChatID,
+				MessageID: bot.lastBidMessage.message.MessageID,
 			})
 		}
 
-		bot.lastBidMessage = msg
+		bot.lastBidMessage = &Context{
+			message:msg,
+			User: ctx.User,
+		}
 	}
 
 	return gerr
@@ -367,7 +389,7 @@ func (bot *Bot) handleUpdate(update *tgbotapi.Update) error {
 					UserName:  u.UserName,
 					FirstName: u.FirstName,
 					LastName:  u.LastName,
-					Admin: admin,
+					Admin:     admin,
 				}
 				if err := bot.db.PutUser(dbuser); err != nil {
 					return fmt.Errorf("failed to save the user: %v", err)
@@ -381,7 +403,6 @@ func (bot *Bot) handleUpdate(update *tgbotapi.Update) error {
 
 	return bot.handleMessage(&ctx)
 }
-
 
 func (bot *Bot) Start() error {
 	u := tgbotapi.NewUpdate(0)
@@ -406,4 +427,3 @@ func (bot *Bot) Start() error {
 	log.Printf("stopped")
 	return nil
 }
-

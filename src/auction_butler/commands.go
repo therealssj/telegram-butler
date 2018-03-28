@@ -19,9 +19,6 @@ func (bot *Bot) setCommandHandlers() {
 	for _, command := range commands {
 		bot.SetCommandHandler(command.Admin, command.Command, command.Handlerfunc)
 	}
-
-	bot.AddPrivateMessageHandler((*Bot).handleDirectMessageFallback)
-	bot.AddGroupMessageHandler((*Bot).handleDirectMessageFallback)
 }
 
 func (bot *Bot) AddPrivateMessageHandler(handler MessageHandler) {
@@ -30,12 +27,6 @@ func (bot *Bot) AddPrivateMessageHandler(handler MessageHandler) {
 
 func (bot *Bot) AddGroupMessageHandler(handler MessageHandler) {
 	bot.groupMessageHandlers = append(bot.groupMessageHandlers, handler)
-}
-
-
-
-func (bot *Bot) handleDirectMessageFallback(ctx *Context, text string) (bool, error) {
-
 }
 
 // Handler for help command
