@@ -15,72 +15,6 @@ type DB struct {
 	*sqlx.DB
 }
 
-func (db *DB) ScheduleEvent(coins int, start time.Time, duration Duration, surprise bool) error {
-	//TODO (therealssj): implement
-	return nil
-}
-
-func (db *DB) StartNewEvent(coins int, duration Duration) error {
-	//TODO (therealssj): implement
-
-	return nil
-}
-
-func (db *DB) StartEvent(e *Event) error {
-	//TODO (therealssj): implement
-
-	return nil
-}
-
-func (db *DB) EndEvent(e *Event) error {
-	if e.EndedAt.Valid {
-		return errors.New("already ended")
-	}
-	t := NewNullTime(time.Now())
-	_, err := db.Exec(
-		db.Rebind("update event set ended_at = ? where id = ?"),
-		t, e.ID,
-	)
-	if err == nil {
-		e.EndedAt = t
-	}
-	return err
-}
-
-func (db *DB) GetCurrentEvent() *Event {
-	var event Event
-
-	err := db.Get(&event, "SELECT * FROM event WHERE ended_at IS NULL")
-
-	if err == sql.ErrNoRows {
-		return nil
-	}
-
-	if err != nil {
-		panic(err)
-		return nil
-	}
-
-	return &event
-}
-
-func (db *DB) GetLastEvent() *Event {
-	var event Event
-
-	err := db.Get(&event, "SELECT * FROM event WHERE ended_at IS NOT NULL AND started_at IS NOT NULL ORDER BY id DESC LIMIT 1")
-
-	if err == sql.ErrNoRows {
-		return nil
-	}
-
-	if err != nil {
-		panic(err)
-		return nil
-	}
-
-	return &event
-}
-
 func NewDB(config *DatabaseConfig) (*DB, error) {
 	if config == nil {
 		errors.New("config should not be nil in NewDB()")
@@ -184,4 +118,69 @@ func (db *DB) GetUserCount(banned bool) (int, error) {
 	}
 
 	return count, nil
+}
+
+func (db *DB) GetCurrentAuction() *Auction {
+	var auction Auction
+
+	err := db.Get(&auction, db.Rebind("select * from auction where end_time>now()"))
+	if err == sql.ErrNoRows {
+		return nil
+	}
+
+	if err != nil {
+		panic(err)
+		return nil
+	}
+
+	return &auction
+}
+
+func (db *DB) PutAuction(end time.Time) error {
+	_, err := db.Exec(db.Rebind(`
+		insert into auction (
+			end_time
+		) values (?)`),
+		end,
+	)
+
+	return err
+}
+
+func (db *DB) PutUser(u *User) error {
+	if u.exists {
+		_, err := db.Exec(db.Rebind(`
+			update botuser
+				set username = ?,
+				first_name = ?,
+				last_name = ?,
+				banned = ?,
+				admin = ?
+			where id = ?`),
+			u.UserName,
+			u.FirstName,
+			u.LastName,
+			u.Banned,
+			u.Admin,
+			u.ID,
+		)
+		return err
+	} else {
+		_, err := db.Exec(db.Rebind(`
+			insert into botuser (
+				id, username, first_name, last_name,
+				banned, admin
+			) values (?, ?, ?, ?, ?, ?)`),
+			u.ID,
+			u.UserName,
+			u.FirstName,
+			u.LastName,
+			u.Banned,
+			u.Admin,
+		)
+		if err == nil {
+			u.exists = true
+		}
+		return err
+	}
 }

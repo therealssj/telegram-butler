@@ -64,14 +64,9 @@ type Chat struct {
 	Type  string `json:"type"`
 }
 
-type Event struct {
+type Auction struct {
 	ID          int      `json:"id"`
-	Duration    Duration `json:"duration"`
-	ScheduledAt NullTime `db:"scheduled_at" json:"scheduled_at"`
-	StartedAt   NullTime `db:"started_at" json:"started_at"`
-	EndedAt     NullTime `db:"ended_at" json:"ended_at"`
-	Coins       int      `json:"coins"`
-	Surprise    bool     `json:"surpruse"`
+	EndTime     NullTime `db:"end_time" json:"end_time"`
 }
 
 func (d Duration) Value() (driver.Value, error) {

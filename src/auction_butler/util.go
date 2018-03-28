@@ -2,10 +2,16 @@ package auction_butler
 
 import (
 	"fmt"
-	"math/rand"
 	"strconv"
 	"strings"
 	"time"
+	"regexp"
+	"errors"
+)
+
+var (
+	ErrNoBidFound = errors.New("no bid found in message")
+	ErrUnableToParseBid = errors.New("unable to parse bid")
 )
 
 func niceDuration(d time.Duration) string {
@@ -42,7 +48,6 @@ func appendField(fields []string, name, format string, args ...interface{}) []st
 	return append(fields, fmt.Sprintf("*%s*: %s", strings.Title(name), value))
 }
 
-
 func parseDuration(args string) (time.Duration, error) {
 	hours, err := strconv.ParseFloat(args, 64)
 	if err == nil {
@@ -62,4 +67,41 @@ func SplitToString(a []int, sep string) string {
 		b[i] = strconv.Itoa(v)
 	}
 	return strings.Join(b, sep)
+}
+
+func findBid(bidStr string) (*Bid, error) {
+	r := regexp.MustCompile(`(\d+((?:\.|,)\d*)?|(?:\.|,)\d+)\s*(?:BTC|SKY)?`)
+	matches := r.FindStringSubmatch(bidStr)
+	if len(matches) == 0 {
+		return nil, ErrNoBidFound
+	}
+
+	bid := parseBid(matches[1])
+	if bid == nil {
+		return nil, ErrUnableToParseBid
+	}
+
+	return bid, nil
+}
+
+func parseBid(bid string) *Bid {
+	var bidValue float64
+	var bidType string
+
+	bid = strings.Replace(bid, ",", ".", 1)
+	bidValue, err := strconv.ParseFloat(bid, 64)
+	if err != nil {
+		return nil
+	}
+
+	if bidValue > 5 {
+		bidType = "SKY"
+	} else {
+		bidType = "BTC"
+	}
+
+	return &Bid{
+		Value: bidValue,
+		CoinType: bidType,
+	}
 }

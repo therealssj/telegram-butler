@@ -5,36 +5,13 @@ CREATE TABLE botuser (
   username   TEXT,
   first_name TEXT,
   last_name  TEXT,
-  address    TEXT, -- skycoin address
   enlisted   BOOL            NOT NULL DEFAULT TRUE, -- is in the group
   banned     BOOL            NOT NULL DEFAULT FALSE, -- is disabled even if in the group
   admin      BOOL            NOT NULL DEFAULT FALSE  -- can issue commands
 );
 
--- Only one event with null `ended_at` should exist, it is considered the
--- current event (scheduled or started).
--- `scheduled_at`, `started_at`, `ended_at` should never be null simultaneously.
-CREATE TABLE event (
-  id           SERIAL PRIMARY KEY,
-  duration     BIGINT  NOT NULL, -- nanoseconds
-  scheduled_at TIMESTAMP WITH TIME zone, -- null if started without schedule
-  started_at   TIMESTAMP WITH TIME zone, -- null if not started yet or canceled
-  ended_at     TIMESTAMP WITH TIME zone, -- null if current event
-  coins        INT     NOT NULL,
-  surprise     BOOLEAN NOT NULL -- no automatic announcements
-);
 
--- This table keeps track of user claims in events. The current list of users
--- is added to this table every time an event starts (with null `claimed_at`).
--- The number of coins for each user is calculated at the start, and then each
--- claim just sets `claimed_at`.
-CREATE TABLE participant (
-  event_id   INT  NOT NULL REFERENCES event (id),
-  user_id    INT  NOT NULL REFERENCES botuser (id),
-  coins      INT  NOT NULL, -- precalculated number of coins for the user
-  winner     BOOL NOT NULL DEFAULT FALSE, -- whether this participant was chosen as a winner
-  claimed_at TIMESTAMP WITH TIME zone, -- null if not claimed yet
-                                       -- leaving it here for future just in case
-                                       -- we make a sort of automatic teller for giveaways
-  PRIMARY KEY (event_id, user_id)
+create table auction (
+  id INT AUTO_INCREMENT PRIMARY KEY NOT NULL, -- auto incrementing auction id
+  end_time TIMESTAMP WITH TIME zone, -- auction end time
 );
